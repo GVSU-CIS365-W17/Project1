@@ -93,3 +93,4 @@ ENV/
 *.hlt
 *__pycache__
 .idea/
+*report
