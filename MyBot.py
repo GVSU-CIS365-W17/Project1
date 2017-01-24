@@ -7,6 +7,36 @@ myID, game_map = hlt.get_init()
 hlt.send_init("MyPythonBot")
 
 
+# Defines a heuristic for discerning bot
+def heuristic(square):
+    if square.strength > 0:
+        return square.production / square.strength
+    else:
+        return square.production
+
+
+# Defines a heuristic for overkill bot
+def overkill_heuristic(square):
+    if square.owner == 0 and square.strength > 0:
+        return square.production / square.strength
+    else:
+        total_damage = 0
+        for direction, neighbor in enumerate(game_map.neighbors(square)):
+            if square.owner != 0 and square.owner != myID:
+                total_damage += neighbor.strength
+        return total_damage
+
+
+# Returns true if the square is a boarder, else false
+def check_is_border(square):
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if neighbor.owner != myID:
+            return True
+
+    return False
+
+
+# Finds the direction of the closest border
 def find_nearest_enemy_direction(square):
     direction = NORTH
     maxDistance = min(game_map.width, game_map.height) / 2
@@ -25,7 +55,47 @@ def find_nearest_enemy_direction(square):
     return direction
 
 
-def assign_move(square):
+# Finds the neighbor with the highest production value
+def find_max_production_neighbor(square):
+    max_production = -1
+    max_direction = None
+    max_neighbor = None
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if neighbor.owner != myID and neighbor.production > max_production:
+            max_production = neighbor.production
+            max_direction = direction
+            max_neighbor = neighbor
+    return max_direction, max_neighbor
+
+
+# Finds the neighbor with the highest heuristic score
+def find_max_heuristic_neighbor(square):
+    max_heuristic = -1
+    max_direction = None
+    max_neighbor = None
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if neighbor.owner != myID and heuristic(neighbor) > max_heuristic:
+            max_heuristic = heuristic(neighbor)
+            max_direction = direction
+            max_neighbor = neighbor
+    return max_direction, max_neighbor
+
+
+# Fiends the neighbor with the highest overkill heuristic
+def find_max_overkill_neighbor(square):
+    max_heuristic = -1
+    max_direction = None
+    max_neighbor = None
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if neighbor.owner != myID and overkill_heuristic(neighbor) > max_heuristic:
+            max_heuristic = overkill_heuristic(neighbor)
+            max_direction = direction
+            max_neighbor = neighbor
+    return max_direction, max_neighbor
+
+
+# Ambiturner code
+def ambi_move(square):
     border = False
 
     for direction, neighbor in enumerate(game_map.neighbors(square)):
@@ -43,17 +113,52 @@ def assign_move(square):
     return Move(square, STILL)
 
 
-# def assign_move(square):
-#     for direction, neighbor in enumerate(game_map.neighbors(square)):
-#         if neighbor.owner != myID and neighbor.strength < square.strength:
-#             return Move(square, direction)
-#
-#     if square.strength < 5 * square.production:
-#         return Move(square, STILL)
-#     else:
-#         return Move(square, random.choice((NORTH, WEST)))
+# Production Bot code
+def prod_move(square):
+    direction, target = find_max_production_neighbor(square)
+    if direction is not None and square.strength > target.strength:
+        return Move(square, direction)
+
+    if square.strength < 5 * square.production:
+        return Move(square, STILL)
+
+    if not check_is_border(square):
+        return Move(square, find_nearest_enemy_direction(square))
+
+    return Move(square, STILL)
+
+
+# Discerning Bot code
+def discerning_move(square):
+    direction, target = find_max_heuristic_neighbor(square)
+    if direction is not None and square.strength > target.strength:
+        return Move(square, direction)
+
+    if square.strength < 5 * square.production:
+        return Move(square, STILL)
+
+    if not check_is_border(square):
+        return Move(square, find_nearest_enemy_direction(square))
+
+    return Move(square, STILL)
+
+
+# Overkill Bot code
+def overkill_move(square):
+    direction, target = find_max_overkill_neighbor(square)
+    if direction is not None and square.strength > target.strength:
+        return Move(square, direction)
+
+    if square.strength < 5 * square.production:
+        return Move(square, STILL)
+
+    if not check_is_border(square):
+        return Move(square, find_nearest_enemy_direction(square))
+
+    return Move(square, STILL)
+
 
 while True:
     game_map.get_frame()
-    moves = [assign_move(square) for square in game_map if square.owner == myID]
+    moves = [discerning_move(square) for square in game_map if square.owner == myID]
     hlt.send_frame(moves)
