@@ -2,7 +2,6 @@ import hlt
 from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
 import random
 
-
 myID, game_map = hlt.get_init()
 hlt.send_init("LowDash")
 
@@ -33,6 +32,14 @@ def check_is_border(square):
         if neighbor.owner != myID:
             return True
 
+    return False
+
+# Checks if the square is strong enough to attack its target.
+# True by default if not a border piece.
+def check_strong_enough(square):
+    direction, target = find_max_overkill_neighbor(square)
+    if target is None or square.strength > target.strength:
+        return True
     return False
 
 
@@ -158,7 +165,33 @@ def overkill_move(square):
     return Move(square, STILL)
 
 
+def combine_move(square):
+    # Attack the enemy if possible
+    direction, target = find_max_overkill_neighbor(square)
+    if direction is not None and square.strength > target.strength:
+        return Move(square, direction)
+
+    # Wait if strength is low
+    if square.strength < 5 * square.production:
+        return Move(square, STILL)
+
+    # Check if combining with neighbor makes neighbor strong enough
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if not check_strong_enough(neighbor) and \
+                                neighbor.owner == myID and \
+                                neighbor.strength + square.strength <= 255 and \
+                                square.strength < neighbor.strength:
+            return Move(square, direction)
+
+    # Move towards the closest border if not a border piece
+    if not check_is_border(square):
+        return Move(square, find_nearest_enemy_direction(square))
+
+    # Otherwise wait
+    return Move(square, STILL)
+
+
 while True:
     game_map.get_frame()
-    moves = [overkill_move(square) for square in game_map if square.owner == myID]
+    moves = [combine_move(square) for square in game_map if square.owner == myID]
     hlt.send_frame(moves)
