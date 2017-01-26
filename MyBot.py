@@ -4,7 +4,7 @@ import random
 
 
 myID, game_map = hlt.get_init()
-hlt.send_init("MyPythonBot")
+hlt.send_init("LowDash")
 
 
 # Defines a heuristic for discerning bot
