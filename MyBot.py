@@ -22,7 +22,7 @@ def overkill_heuristic(square):
     else:
         total_damage = 0
         for direction, neighbor in enumerate(game_map.neighbors(square)):
-            if square.owner != 0 and square.owner != myID:
+            if neighbor.owner != 0 and neighbor.owner != myID:
                 total_damage += neighbor.strength
         return total_damage
 
@@ -160,5 +160,5 @@ def overkill_move(square):
 
 while True:
     game_map.get_frame()
-    moves = [discerning_move(square) for square in game_map if square.owner == myID]
+    moves = [overkill_move(square) for square in game_map if square.owner == myID]
     hlt.send_frame(moves)
