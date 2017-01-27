@@ -58,7 +58,24 @@ def find_nearest_enemy_direction(square):
     return direction
 
 
-# Fiends the neighbor with the highest overkill heuristic
+def find_max_heuristic_border_direction(square):
+    direction = NORTH
+    maxDistance = min(game_map.width, game_map.height) / 2
+
+    for d in (NORTH, EAST, SOUTH, WEST):
+        distance = 0
+        neighbor = game_map.get_target(square, d)
+        while neighbor.owner == myID and distance < maxDistance:
+            distance += 1
+            neighbor = game_map.get_target(neighbor, d)
+
+        if distance < maxDistance:
+            direction = d
+            maxDistance = distance
+
+    return direction
+
+# Finds the neighbor with the highest overkill heuristic
 def find_max_heuristic_neighbor(square):
     max_heuristic = -1
     max_direction = None
@@ -71,6 +88,22 @@ def find_max_heuristic_neighbor(square):
     return max_direction, max_neighbor
 
 
+# Finds the sum of the heuristic scores of all neighbors of a square
+def sum_heuristic_neighbors(square):
+    sum = 0
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if neighbor.owner != myID:
+            sum += heuristic(neighbor)
+    return sum
+
+
+def check_overflow(square):
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if neighbor.strength + square.strength > 255:
+            return True
+    return False
+
+
 def assess_move(square):
     # Attack the enemy if possible
     direction, target = find_max_heuristic_neighbor(square)
@@ -78,7 +111,7 @@ def assess_move(square):
         return Move(square, direction)
 
     # Wait if strength is low
-    if square.strength < 5 * square.production:
+    if square.strength < 5 * square.production and not check_overflow(square):
         return Move(square, STILL)
 
     # Check if combining with neighbor makes neighbor strong enough
@@ -86,7 +119,7 @@ def assess_move(square):
         if not check_strong_enough(neighbor) and \
                                 neighbor.owner == myID and \
                                 neighbor.strength + square.strength <= 255 and \
-                                square.strength < neighbor.strength:
+                                sum_heuristic_neighbors(square) < sum_heuristic_neighbors(neighbor):
             return Move(square, direction)
 
     # Move towards the closest border if not a border piece
