@@ -4,7 +4,7 @@ import random
 
 
 myID, game_map = hlt.get_init()
-hlt.send_init("LowDash")
+hlt.send_init("LowDash_v1")
 
 border_list = []
 
