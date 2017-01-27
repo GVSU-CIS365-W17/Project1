@@ -9,7 +9,6 @@ import random
 myID, game_map = hlt.get_init()
 hlt.send_init("LowDash")
 
-border_list = []
 
 # Defines a heuristic for overkill bot
 def heuristic(square):
@@ -59,47 +58,22 @@ def find_nearest_enemy_direction(square):
     return direction
 
 
-#Broken and time out
-# def find_nearest_border(square):
-#     direction = NORTH
-#     max_distance = min(game_map.width, game_map.height) / 2
-#     nearest_border = border_list[0]
-#
-#     #Find closest border
-#     for border_square in border_list:
-#         distance = game_map.get_distance(square, border_square)
-#         if distance < max_distance:
-#             max_distance = distance
-#             nearest_border = border_square
-#
-#     # Find shortest path to closest border
-#     for d in (NORTH, EAST, SOUTH, WEST):
-#         neighbor = game_map.get_target(square, d)
-#         distance = game_map.get_distance(neighbor, nearest_border)
-#         if distance < max_distance:
-#             max_distance = distance
-#             direction = d
-#
-#     return direction
+def find_max_heuristic_border_direction(square):
+    direction = NORTH
+    maxDistance = min(game_map.width, game_map.height) / 2
 
+    for d in (NORTH, EAST, SOUTH, WEST):
+        distance = 0
+        neighbor = game_map.get_target(square, d)
+        while neighbor.owner == myID and distance < maxDistance:
+            distance += 1
+            neighbor = game_map.get_target(neighbor, d)
 
-# def find_max_heuristic_border_direction(square):
-#     direction = NORTH
-#     maxDistance = min(game_map.width, game_map.height) / 2
-#
-#     for d in (NORTH, EAST, SOUTH, WEST):
-#         distance = 0
-#         neighbor = game_map.get_target(square, d)
-#         while neighbor.owner == myID and distance < maxDistance:
-#             distance += 1
-#             neighbor = game_map.get_target(neighbor, d)
-#
-#         if distance < maxDistance:
-#             direction = d
-#             maxDistance = distance
-#
-#     return direction
+        if distance < maxDistance:
+            direction = d
+            maxDistance = distance
 
+    return direction
 
 # Finds the neighbor with the highest overkill heuristic
 def find_max_heuristic_neighbor(square):
@@ -123,19 +97,11 @@ def sum_heuristic_neighbors(square):
     return sum
 
 
-# Checks if a neighbor is big enough to cause overflow
 def check_overflow(square):
     for direction, neighbor in enumerate(game_map.neighbors(square)):
         if neighbor.strength + square.strength > 255:
             return True
     return False
-
-
-# Creates a list of all squares that are on the player's borders
-def find_borders():
-    for square in game_map:
-        if square.owner == myID and check_is_border(square):
-            border_list.append(square)
 
 
 def assess_move(square):
@@ -158,7 +124,6 @@ def assess_move(square):
 
     # Move towards the closest border if not a border piece
     if not check_is_border(square):
-        # return Move(square, find_nearest_enemy_direction(square))
         return Move(square, find_nearest_enemy_direction(square))
 
     # Otherwise wait
@@ -167,6 +132,5 @@ def assess_move(square):
 
 while True:
     game_map.get_frame()
-    # find_borders()
     moves = [assess_move(square) for square in game_map if square.owner == myID]
     hlt.send_frame(moves)
