@@ -94,3 +94,4 @@ ENV/
 *__pycache__
 .idea/
 *report
+*.out
