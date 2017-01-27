@@ -1,6 +1,3 @@
-import json
-from collections import namedtuple
-
 import hlt
 from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
 import random
