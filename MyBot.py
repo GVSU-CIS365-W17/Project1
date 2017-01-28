@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import hlt
 from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
 import random
@@ -6,7 +8,10 @@ import random
 myID, game_map = hlt.get_init()
 hlt.send_init("LowDash")
 
-border_list = []
+# Minimum strength / production ratio
+min_strength = 5
+
+# border_list = []
 
 # Defines a heuristic for overkill bot
 def heuristic(square):
@@ -210,9 +215,112 @@ def assess_move(square):
     return Move(square, STILL)
 
 
+####################################################################################
+# Start Version 2
+####################################################################################
+
+def get_move_precedence(square):
+    move_precedence = []
+
+    # Attack the enemy if possible
+    direction, target = find_max_heuristic_neighbor(square)
+    if direction is not None and square.strength > target.strength:
+        move_precedence.append(Move(square, direction))
+
+    # Wait if strength is low
+    if square.strength < min_strength * square.production and not check_overflow(square):
+        move_precedence.append(Move(square, STILL))
+
+    # Check if combining with neighbor makes neighbor strong enough
+    for direction, neighbor in enumerate(game_map.neighbors(square)):
+        if not check_strong_enough(neighbor) and neighbor.owner == myID and \
+                sum_heuristic_neighbors(square) < sum_heuristic_neighbors(neighbor):
+
+            # May want to order these
+            move_precedence.append(Move(square, direction))
+
+    # Move towards the closest border if not a border piece
+    if not check_is_border(square):
+        move_precedence.append(Move(square, find_nearest_enemy_direction(square)))
+
+    # Add all other directions to move_precedence list
+    for d in (STILL, NORTH, EAST, SOUTH, WEST):
+        if Move(square, d) not in move_precedence:
+            move_precedence.append(Move(square, d))
+
+    return move_precedence
+
+
+# Returns the best move that does not cause an overflow, STILL by default
+def check_moves(move_precedence):
+    for move in move_precedence:
+        target = game_map.get_target(move.square, move.direction)
+        if target.owner != move.square.owner:
+            return move
+
+        elif target.strength + move.square.strength <= 255:
+            return move
+
+        elif move.square.strength == 255:
+            return move
+
+        elif check_overflow(move.square) and move.direction != STILL:
+            return move
+
+    return Move(move_precedence[0].square, STILL)
+
+
+# Modifies the game_map based on the move (broken)
+def apply_move(move):
+    square = deepcopy(move.square)
+    target = deepcopy(game_map.get_target(square, move.direction))
+
+    if move.direction != STILL:
+        game_map.contents[square.x][square.y].strength = 0
+
+        if square.owner == target.owner:
+            new_strength = min(255, target.strength + square.strength)
+            game_map.contents[target.x][target.y].strength = new_strength
+
+        elif target.owner == 0:
+            if target.strength > square.strength:
+                game_map.contents[target.x][target.y].strength \
+                    = target.strength - square.strength
+
+            else:
+                game_map.contents[target.x][target.y].strength \
+                    = square.strength - target.strength
+                game_map.contents[target.x][target.y].owner = square.owner
+
+        else:
+            sum_opponent_strength = target.strength
+            for direction, neighbor in enumerate(game_map.neighbors(target)):
+                if neighbor.owner != square.owner and neighbor.owner != 0:
+                    sum_opponent_strength += neighbor.strength
+                    game_map.contents[neighbor.x][neighbor.y].strength -= square.strength
+                    if game_map.contents[neighbor.x][neighbor.y].strength <= 0:
+                        game_map.contents[neighbor.x][neighbor.y].strength = 0
+                        game_map.contents[neighbor.x][neighbor.y].owner = 0
+
+            game_map.contents[target.x][target.y].strength -= square.strength
+            square.strength -= sum_opponent_strength
+            if game_map.contents[target.x][target.y].strength < 0 and square.strength > 0:
+                game_map.contents[target.x][target.y].owner = square.owner
+                game_map.contents[target.x][target.y].strength = square.strength
+
+
 while True:
     game_map.get_frame()
-    # find_borders()
-    moves = [assess_move(square) for square in game_map if square.owner == myID]
-    # border_list = []
+    local_map = deepcopy(game_map)
+    # moves = [assess_move(square) for square in game_map if square.owner == myID]
+
+    moves = []
+    for square in local_map:
+        if square.owner == myID:
+            # moves.append(assess_move(square))
+            move_precedence = get_move_precedence(square)
+            move = check_moves(move_precedence)
+            # apply_move(move)
+            moves.append(move)
+
     hlt.send_frame(moves)
