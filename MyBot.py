@@ -5,13 +5,10 @@ from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
 
 
 myID, game_map = hlt.get_init()
-hlt.send_init("LowDash")
+hlt.send_init("LowDash_v2")
 
 # Minimum strength / production ratio
 min_strength = 5
-
-
-search_radius = 3
 
 
 # Defines a heuristic for overkill bot
@@ -84,24 +81,6 @@ def find_max_heuristic_neighbor(square):
     return max_direction, max_neighbor
 
 
-# Gets the square at the specified offset away from the passed square
-def get_square_at(square, x_offset, y_offset):
-    x = square.x + x_offset
-    y = square.y + y_offset
-
-    if x < 0:
-        x += game_map.width
-    if x >= game_map.width:
-        x -= game_map.width
-
-    if y < 0:
-        y += game_map.height
-    if y >= game_map.height:
-        y -= game_map.height
-
-    return game_map.contents[x][y]
-
-
 # Finds the sum of the heuristic scores of all neighbors of a square
 def sum_heuristic_neighbors(square):
     sum = 0
@@ -109,15 +88,6 @@ def sum_heuristic_neighbors(square):
         if neighbor.owner != myID:
             sum += heuristic(neighbor)
     return sum
-    # radius = 2
-    # for x in range(-1 * search_radius, search_radius, 1):
-    #     for y in range(-1 * search_radius, search_radius, 1):
-    #         neighbor = get_square_at(square, x, y)
-    #         if neighbor.owner != myID:
-    #             sum += heuristic(neighbor) / max(game_map.get_distance(square, neighbor), 1)
-    #         # neighbor_set.add(neighbor)
-    #
-    # return sum
 
 
 # Checks to see if overflow is possible
@@ -131,11 +101,11 @@ def check_overflow(move):
             if neighbor.strength > move.square.strength:
                 return True
 
-            # elif neighbor.strength == move.square.strength:
-            #     if sum_heuristic_neighbors(neighbor) > sum_heuristic_neighbors(move.square):
-            #         return True
-            #     elif sum_heuristic_neighbors(neighbor) == sum_heuristic_neighbors(move.square):
-            #         return bool(random.getrandbits(1))
+            elif neighbor.strength == move.square.strength:
+                if sum_heuristic_neighbors(neighbor) > sum_heuristic_neighbors(move.square):
+                    return True
+                elif sum_heuristic_neighbors(neighbor) == sum_heuristic_neighbors(move.square):
+                    return bool(random.getrandbits(1))
 
     if target.owner == myID and \
                             target.strength + move.square.strength >= 255 and \
@@ -143,11 +113,11 @@ def check_overflow(move):
         if target.strength > move.square.strength:
             return True
 
-        # elif target.strength == move.square.strength:
-        #     if sum_heuristic_neighbors(target) > sum_heuristic_neighbors(move.square):
-        #         return True
-        #     elif sum_heuristic_neighbors(target) == sum_heuristic_neighbors(move.square):
-        #         return bool(random.getrandbits(1))
+        elif target.strength == move.square.strength:
+            if sum_heuristic_neighbors(target) > sum_heuristic_neighbors(move.square):
+                return True
+            elif sum_heuristic_neighbors(target) == sum_heuristic_neighbors(move.square):
+                return bool(random.getrandbits(1))
 
     return False
 
@@ -194,9 +164,6 @@ def check_moves(move_precedence):
             return move
 
         elif target.owner != myID and target.owner != 0:
-            return move
-
-        elif move.square.strength == 255:
             return move
 
     return Move(move_precedence[0].square, STILL)
