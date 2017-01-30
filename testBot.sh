@@ -4,13 +4,17 @@
 boardSize="30 30"
 
 #Number of games per bot:
-numTests=10
+numTests=100
 
 #Path to MyBot:
 myPath="MyBot.py"
 
 #Path to test bot directory:
 testPath="testBots"
+
+#Maximum number of parallel simulations. As bot complexity increases
+#it may be necessary to decrease this to prevent timeouts
+maxThreads=12
 
 numBots=$(ls $testPath/*Bot.py | wc -l)
 
@@ -32,16 +36,31 @@ do
 	s=${Bot#*/}
 	botName=${s%%.*}
 
-	while [ "$n" -lt "$numTests" ]; do
-		./halite -q -d "$boardSize" "python3 $myPath" "python3 $Bot" > "temp$n" &
+	# while [ "$n" -lt "$numTests" ]; do
+	while (( n < numTests )); do
+		numThreads=0
+		# while [ "$numThreads" -lt "$maxThreads" ]; do
+		while (( (n < numTests) && ( numThreads < maxThreads ) )); do
+			./halite -q -d "$boardSize" "python3 $myPath" "python3 $Bot" > "temp$n" &
 
-		#Increment loop counter
-		((n+=1))
-		((testsRun+=1))
+			#Increment loop counter
+			((n+=1))
+			((testsRun+=1))
+			((numThreads+=1))
+		done
+		wait
+		printf "\rRunning Tests...%d%%" "$((100*$testsRun/($numBots*$numTests)))"
 	done
-
-	#Wait for background processes to finish
-	wait
+	# while [ "$n" -lt "$numTests" ]; do
+	# 	./halite -q -d "$boardSize" "python3 $myPath" "python3 $Bot" > "temp$n" &
+	#
+	# 	#Increment loop counter
+	# 	((n+=1))
+	# 	((testsRun+=1))
+	# done
+	#
+	# #Wait for background processes to finish
+	# wait
 
 	printf "\rRunning Tests...%d%%" "$((100*$testsRun/($numBots*$numTests)))"
 
