@@ -5,7 +5,7 @@ from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
 
 
 myID, game_map = hlt.get_init()
-hlt.send_init("LowDash_v2")
+hlt.send_init("LowDash")
 
 # Minimum strength / production ratio
 min_strength = 5
