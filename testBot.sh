@@ -4,7 +4,7 @@
 boardSize="30 30"
 
 #Number of games per bot:
-numTests=10
+numTests=100
 
 #Path to MyBot:
 myPath="MyBot.py"
