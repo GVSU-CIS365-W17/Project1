@@ -6,7 +6,7 @@ from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
 
 
 myID, game_map = hlt.get_init()
-hlt.send_init("LowDash_v2")
+hlt.send_init("LowDash_v3")
 
 # Minimum strength / production ratio
 min_strength = 5
@@ -27,22 +27,22 @@ class MyGameMap:
         self.height = game_map.height
         self.width = game_map.width
 
-        for x in range(game_map.height):
-            for y in range(game_map.width):
-                self.contents[x][y].strength = game_map.contents[x][y].strength
-                self.contents[x][y].production = game_map.contents[x][y].strength
-                self.contents[x][y].owner = game_map.contents[x][y].strength
-                self.contents[x][y].x = game_map.contents[x][y].x
-                self.contents[x][y].y = game_map.contents[x][y].y
+        for y in range(game_map.height):
+            for x in range(game_map.width):
+                self.contents[y][x].strength = game_map.contents[y][x].strength
+                self.contents[y][x].production = game_map.contents[y][x].production
+                self.contents[y][x].owner = game_map.contents[y][x].owner
+                self.contents[y][x].x = game_map.contents[y][x].x
+                self.contents[y][x].y = game_map.contents[y][x].y
 
     def update_map(self, game_map):
-        for x in range(game_map.height):
-            for y in range(game_map.width):
-                self.contents[x][y].strength = game_map.contents[x][y].strength
-                self.contents[x][y].production = game_map.contents[x][y].strength
-                self.contents[x][y].owner = game_map.contents[x][y].strength
-                self.contents[x][y].x = game_map.contents[x][y].x
-                self.contents[x][y].y = game_map.contents[x][y].y
+        for y in range(game_map.height):
+            for x in range(game_map.width):
+                self.contents[y][x].strength = game_map.contents[y][x].strength
+                self.contents[y][x].production = game_map.contents[y][x].production
+                self.contents[y][x].owner = game_map.contents[y][x].owner
+                self.contents[y][x].x = game_map.contents[y][x].x
+                self.contents[y][x].y = game_map.contents[y][x].y
 
     def __iter__(self):
         return chain.from_iterable(self.contents)
@@ -146,64 +146,80 @@ class MyGameMap:
     def get_move_precedence(self, square):
         move_precedence = []
 
+        temp = square.strength
+        square.strength = game_map.contents[square.y][square.x].strength
+
         # Attack the enemy if possible
         direction, target = self.find_max_heuristic_neighbor(square)
         if direction is not None and square.strength > target.strength:
             move_precedence.append(Move(square, direction))
+            # return direction
 
         # Wait if strength is low
         if square.strength < min_strength * square.production:  # and not check_overflow(square):
             move_precedence.append(Move(square, STILL))
+            # return STILL
 
         # Check if combining with neighbor makes neighbor strong enough
-        for direction, neighbor in enumerate(game_map.neighbors(square)):
+        for direction, neighbor in enumerate(self.neighbors(square)):
             if not self.check_strong_enough(neighbor) and neighbor.owner == myID and \
                             self.sum_heuristic_neighbors(square) < self.sum_heuristic_neighbors(neighbor):
                 # May want to order these
                 move_precedence.append(Move(square, direction))
+                # return direction
 
         # Move towards the closest border if not a border piece
         if not self.check_is_border(square):
             move_precedence.append(Move(square, self.find_nearest_enemy_direction(square)))
+            # return self.find_nearest_enemy_direction(square)
 
         # Add all other directions to move_precedence list
-        for d in (NORTH, EAST, SOUTH, WEST, STILL):
+        for d in (STILL, NORTH, EAST, SOUTH, WEST):
             if Move(square, d) not in move_precedence:
                 move_precedence.append(Move(square, d))
 
+        square.strength = temp
+
+        # return STILL
         return move_precedence
 
     # Checks to see if overflow is possible
     def check_overflow(self, move):
-        target = game_map.get_target(move.square, move.direction)
-        for direction, neighbor in enumerate(game_map.neighbors(target)):
-            if neighbor.owner == myID and \
-                                    neighbor.strength + move.square.strength >= 255 and \
-                                    neighbor != move.square:
+        target = self.get_target(move.square, move.direction)
+        # for direction, neighbor in enumerate(self.neighbors(target)):
+        #     if neighbor.owner == myID and \
+        #                             neighbor.strength + move.square.strength >= 255 and \
+        #                             neighbor != move.square:
+        #
+        #         if neighbor.strength > move.square.strength:
+        #             return True
+        #
+        #         # elif neighbor.strength == move.square.strength:
+        #         #     if self.sum_heuristic_neighbors(neighbor) > self.sum_heuristic_neighbors(move.square):
+        #         #         return True
+        #         #     elif self.sum_heuristic_neighbors(neighbor) == self.sum_heuristic_neighbors(move.square):
+        #         #         return bool(random.getrandbits(1))
+        #
+        # if target.owner == myID and \
+        #                         target.strength + move.square.strength >= 255 and \
+        #                         target != move.square:
+        #     if target.strength > move.square.strength:
+        #         return True
+        #
+        #     # elif target.strength == move.square.strength:
+        #     #     if self.sum_heuristic_neighbors(target) > self.sum_heuristic_neighbors(move.square):
+        #     #         return True
+        #     #     elif self.sum_heuristic_neighbors(target) == self.sum_heuristic_neighbors(move.square):
+        #     #         return bool(random.getrandbits(1))
+        if target.owner == move.square.owner and target.strength + move.square.strength > 255:
+            return True
 
-                if neighbor.strength > move.square.strength:
+        if move.direction == STILL:
+            for direction, neighbor in enumerate(self.neighbors(move.square)):
+                if neighbor.strength == 255:
                     return True
 
-                # elif neighbor.strength == move.square.strength:
-                #     if self.sum_heuristic_neighbors(neighbor) > self.sum_heuristic_neighbors(move.square):
-                #         return True
-                #     elif self.sum_heuristic_neighbors(neighbor) == self.sum_heuristic_neighbors(move.square):
-                #         return bool(random.getrandbits(1))
-
-        if target.owner == myID and \
-                                target.strength + move.square.strength >= 255 and \
-                                target != move.square:
-            if target.strength > move.square.strength:
-                return True
-
-            # elif target.strength == move.square.strength:
-            #     if self.sum_heuristic_neighbors(target) > self.sum_heuristic_neighbors(move.square):
-            #         return True
-            #     elif self.sum_heuristic_neighbors(target) == self.sum_heuristic_neighbors(move.square):
-            #         return bool(random.getrandbits(1))
-
         return False
-
 
     # Returns the best move that does not cause an overflow, STILL by default
     def check_moves(self, move_precedence):
@@ -218,6 +234,40 @@ class MyGameMap:
 
         return Move(move_precedence[0].square, STILL)
 
+    def apply_move(self, move):
+        target = self.get_target(move.square, move.direction)
+
+        if move.direction != STILL:
+
+            if target.owner == 0:
+                target.strength -= move.square.strength
+                if target.strength <= 0:
+                    target.strength *= -1
+                    target.owner = move.square.owner
+
+            elif target.owner == move.square.owner:
+                target.strength = min(255, target.strength + move.square.strength)
+
+            else:
+                enemy_strength = target.strength
+                for direction, neighbor in enumerate(self.neighbors(target)):
+                    enemy_strength += neighbor.strength
+                    neighbor.strength -= move.square.strength
+                    if neighbor.strength <= 0:
+                        neighbor.owner = 0
+
+                target.strength -= move.square.strength
+                move.square.strength -= enemy_strength
+                if target.strength <= 0 and move.square.strength > 0:
+                    target.strength *= -1
+                    target.owner = move.square.owner
+
+            move.square.strength -= game_map.contents[move.square.y][move.square.x].strength
+
+        else:
+            move.square.strength = min(255, move.square.production + move.square.strength)
+
+
 f = open('logfile.log', 'w')
 while True:
     game_map.get_frame()
@@ -231,39 +281,42 @@ while True:
 #     f.write('\n')
 #
     local_map = MyGameMap(game_map)
-    local_map.update_map(game_map)
+    # local_map.update_map(game_map)
 
     # f = open('logfile.log', 'w')
 
     moves = []
     for square in game_map:
         if square.owner == myID:
-            local_square = local_map.contents[square.x][square.y]
+            local_square = local_map.contents[square.y][square.x]
             move_precedence = local_map.get_move_precedence(local_square)
             local_move = local_map.check_moves(move_precedence)
+            local_map.apply_move(local_move)
             move = Move(square, local_move.direction)
+            # direction = local_map.get_move_precedence(local_square)
+            # moves.append(Move(square, direction))
             moves.append(move)
 
-    for m in moves:
-        output = ('Square at ', m.square.x, ' ', m.square.y, ' moves ', m.direction, '\n')
-        s = str(output)
-        # f.write(s)
-        f.write('Square at ')
-        f.write(str(m.square.x))
-        f.write(' ')
-        f.write(str(m.square.y))
-        f.write(' moves ')
-        # f.write(str(m.direction))
-        if m.direction == NORTH:
-            f.write('NORTH')
-        elif m.direction == SOUTH:
-            f.write('SOUTH')
-        elif m.direction == WEST:
-            f.write('WEST')
-        elif m.direction == EAST:
-            f.write('EAST')
-        elif m.direction == STILL:
-            f.write('STILL')
-        f.write('\n\n')
+    # for m in moves:
+    #     output = ('Square at ', m.square.x, ' ', m.square.y, ' moves ', m.direction, '\n')
+    #     s = str(output)
+    #     # f.write(s)
+    #     f.write('Square at ')
+    #     f.write(str(m.square.x))
+    #     f.write(' ')
+    #     f.write(str(m.square.y))
+    #     f.write(' moves ')
+    #     # f.write(str(m.direction))
+    #     if m.direction == NORTH:
+    #         f.write('NORTH')
+    #     elif m.direction == SOUTH:
+    #         f.write('SOUTH')
+    #     elif m.direction == WEST:
+    #         f.write('WEST')
+    #     elif m.direction == EAST:
+    #         f.write('EAST')
+    #     elif m.direction == STILL:
+    #         f.write('STILL')
+    #     f.write('\n\n')
 
     hlt.send_frame(moves)
