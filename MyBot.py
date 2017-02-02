@@ -2,15 +2,18 @@ import random
 
 import hlt
 from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
+from math import sqrt
 
 
 myID, game_map = hlt.get_init()
 hlt.send_init("LowDash_v2")
 
-# Minimum strength / production ratio
+#Minimum strength / production ratio
 strength = 2
 max_strength = 7
-
+game_map.get_frame()
+map_size = game_map.width + game_map.height
+increment = 5/(10 * sqrt(map_size))*.1
 
 # Defines a heuristic for overkill bot
 def heuristic(square):
@@ -171,8 +174,6 @@ def check_moves(move_precedence):
 
 
 while True:
-    game_map.get_frame()
-
     moves = []
     for square in game_map:
         if square.owner == myID:
@@ -180,7 +181,8 @@ while True:
             move = check_moves(move_precedence)
             moves.append(move)
 
-    if strength + .05 <= max_strength:
-        strength += .05
+    if strength + increment <= max_strength:
+        strength += increment
 
     hlt.send_frame(moves)
+    game_map.get_frame()
