@@ -8,7 +8,8 @@ myID, game_map = hlt.get_init()
 hlt.send_init("LowDash_v2")
 
 # Minimum strength / production ratio
-min_strength = 5
+strength = 2
+max_strength = 7
 
 
 # Defines a heuristic for overkill bot
@@ -132,7 +133,7 @@ def get_move_precedence(square):
         move_precedence.append(Move(square, direction))
 
     # Wait if strength is low
-    if square.strength < min_strength * square.production:# and not check_overflow(square):
+    if square.strength < strength * square.production:# and not check_overflow(square):
         move_precedence.append(Move(square, STILL))
 
     # Check if combining with neighbor makes neighbor strong enough
@@ -178,5 +179,8 @@ while True:
             move_precedence = get_move_precedence(square)
             move = check_moves(move_precedence)
             moves.append(move)
+
+    if strength + .05 <= max_strength:
+        strength += .05
 
     hlt.send_frame(moves)
