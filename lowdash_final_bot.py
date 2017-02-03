@@ -18,6 +18,8 @@ hlt.send_init("LowDash")
 # Minimum strength / production ratio
 min_strength = 5
 
+# Search depth
+search_depth = 2
 
 def heuristic(square):
     """Defines a heuristic with which to measure the value of a square.
@@ -108,7 +110,7 @@ def sum_heuristic_neighbors(square):
     :return: The heuristic sum of the neighbors
     """
     sum = 0
-    for direction, neighbor in enumerate(game_map.neighbors(square)):
+    for direction, neighbor in enumerate(game_map.neighbors(square, search_depth, False)):
         if neighbor.owner != myID:
             sum += heuristic(neighbor)
     return sum
@@ -134,9 +136,11 @@ def check_overflow(move):
                 return True
 
             elif neighbor.strength == move.square.strength:
-                if sum_heuristic_neighbors(neighbor) > sum_heuristic_neighbors(move.square):
+                neighbor_score = sum_heuristic_neighbors(neighbor)
+                square_score = sum_heuristic_neighbors(move.square)
+                if neighbor_score > square_score:
                     return True
-                elif sum_heuristic_neighbors(neighbor) == sum_heuristic_neighbors(move.square):
+                elif neighbor_score == square_score:
                     return bool(random.getrandbits(1))
 
     return False
@@ -185,13 +189,16 @@ def check_moves(move_precedence):
     for move in move_precedence:
         target = game_map.get_target(move.square, move.direction)
 
+        if move.square.strength == 255 and move.direction == STILL:
+            continue
+
         if not check_overflow(move):
             return move
 
         elif target.owner != myID and target.owner != 0:
             return move
 
-    return Move(move_precedence[0].square, STILL)
+    return move_precedence[0]
 
 
 while True:
