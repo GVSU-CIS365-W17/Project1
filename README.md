@@ -1,2 +1,6 @@
-# Project1
-CIS 365 W17 - Project 1
+# Project1 - Halite Bot
+## CIS 365 W17
+
+- Mark Jannenga
+- Tanner Gibson
+- Sierra Ellison
