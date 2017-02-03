@@ -1,22 +1,29 @@
+"""
+CIS 365 W17
+Project 1: Halite Bot
+Team LowDash: Mark Jannenga, Tanner Gibson, Sierra Ellison
+
+This is a bot built to play Halite (halite.io).
+"""
+
 import random
 
 import hlt
 from hlt import NORTH, EAST, SOUTH, WEST, STILL, Move, Square
-from math import sqrt
 
 
 myID, game_map = hlt.get_init()
 hlt.send_init("LowDash")
 
-#Minimum strength / production ratio
-strength = 2
-max_strength = 7
-game_map.get_frame()
-map_size = game_map.width + game_map.height
-increment = 5/(10 * sqrt(map_size))*.1
+# Minimum strength / production ratio
+min_strength = 5
 
-# Defines a heuristic for overkill bot
+
 def heuristic(square):
+    """Defines a heuristic with which to measure the value of a square.
+    :param square: The square to be evaluated
+    :return: The heuristic value of the square
+    """
     if square.owner == 0 and square.strength > 0:
         return square.production / square.strength
     else:
@@ -27,27 +34,34 @@ def heuristic(square):
         return total_damage
 
 
-# Returns true if the square is a boarder, else false
 def check_is_border(square):
+    """Checks if a given square is on the border of the player's territory.
+    :param square: The square to check
+    :return: True if on the border, else False
+    """
     for direction, neighbor in enumerate(game_map.neighbors(square)):
         if neighbor.owner != myID:
             return True
-
     return False
 
 
-# Checks if the square is strong enough to attack its target.
-# True by default if not a border piece.
 def check_strong_enough(square):
+    """Checks if a square is strong enough to capture the best available
+    enemy neighbor square.
+    :param square: The square to check
+    :return: True if the square is strong enough, else False
+    """
     direction, target = find_max_heuristic_neighbor(square)
     if target is None or square.strength > target.strength:
         return True
     return False
 
 
-# Finds the direction of the closest border breaks ties based
-# based on heuristic sum scores
 def find_nearest_enemy_direction(square):
+    """Finds the closest border to the square. Breaks ties based on heuristic scores.
+    :param square: The square to check
+    :return: The direction to the nearest border
+    """
     direction = NORTH
     max_distance = min(game_map.width, game_map.height) / 2
     max_heuristic = 0
@@ -72,8 +86,11 @@ def find_nearest_enemy_direction(square):
     return direction
 
 
-# Finds the neighbor with the highest overkill heuristic
 def find_max_heuristic_neighbor(square):
+    """Finds the neighbor with the highest heuristic score.
+    :param square: The square to check
+    :return: The direction of the max heuristic neighbor, and the neighbor itself
+    """
     max_heuristic = -1
     max_direction = None
     max_neighbor = None
@@ -85,8 +102,11 @@ def find_max_heuristic_neighbor(square):
     return max_direction, max_neighbor
 
 
-# Finds the sum of the heuristic scores of all neighbors of a square
 def sum_heuristic_neighbors(square):
+    """Finds the sum of the heuristics of all the unowned neighboring squares.
+    :param square: The square to check
+    :return: The heuristic sum of the neighbors
+    """
     sum = 0
     for direction, neighbor in enumerate(game_map.neighbors(square)):
         if neighbor.owner != myID:
@@ -94,10 +114,18 @@ def sum_heuristic_neighbors(square):
     return sum
 
 
-# Checks to see if overflow is possible
 def check_overflow(move):
+    """Takes a move and checks to see if that move could possibly cause an overflow
+    (i.e. a strength sum >255).
+    :param move: The move to check
+    :return: True if the move could cause an overflow, else False
+    """
     target = game_map.get_target(move.square, move.direction)
-    for direction, neighbor in enumerate(game_map.neighbors(target)):
+    for direction, neighbor in enumerate(game_map.neighbors(target, 1, True)):
+        # If the square and a neighbor of the target sum to more than 255, give the
+        # stronger of the two the right-of-way (i.e. return True for the weaker of
+        # the two. Break ties with the heuristic score sums. If the heuristic score
+        # sums are also tied, give one the right-of-way at random
         if neighbor.owner == myID and \
                                 neighbor.strength + move.square.strength >= 255 and \
                                 neighbor != move.square:
@@ -111,23 +139,14 @@ def check_overflow(move):
                 elif sum_heuristic_neighbors(neighbor) == sum_heuristic_neighbors(move.square):
                     return bool(random.getrandbits(1))
 
-    if target.owner == myID and \
-                            target.strength + move.square.strength >= 255 and \
-                            target != move.square:
-        if target.strength > move.square.strength:
-            return True
-
-        elif target.strength == move.square.strength:
-            if sum_heuristic_neighbors(target) > sum_heuristic_neighbors(move.square):
-                return True
-            elif sum_heuristic_neighbors(target) == sum_heuristic_neighbors(move.square):
-                return bool(random.getrandbits(1))
-
     return False
 
 
-# Gets a list of possible moves in order from best to worst
 def get_move_precedence(square):
+    """Creates a list of moves in order from best to worst for a given square.
+    :param square: The square to check
+    :return: The list of moves
+    """
     move_precedence = []
 
     # Attack the enemy if possible
@@ -136,15 +155,13 @@ def get_move_precedence(square):
         move_precedence.append(Move(square, direction))
 
     # Wait if strength is low
-    if square.strength < strength * square.production:# and not check_overflow(square):
+    if square.strength < min_strength * square.production:
         move_precedence.append(Move(square, STILL))
 
     # Check if combining with neighbor makes neighbor strong enough
     for direction, neighbor in enumerate(game_map.neighbors(square)):
         if not check_strong_enough(neighbor) and neighbor.owner == myID and \
                 sum_heuristic_neighbors(square) < sum_heuristic_neighbors(neighbor):
-
-            # May want to order these
             move_precedence.append(Move(square, direction))
 
     # Move towards the closest border if not a border piece
@@ -159,8 +176,12 @@ def get_move_precedence(square):
     return move_precedence
 
 
-# Returns the best move that does not cause an overflow, STILL by default
 def check_moves(move_precedence):
+    """Goes through a list of possible moves and returns the first one that
+    doesn't potentially cause an overflow.
+    :param move_precedence: The list of moves
+    :return: A move that won't cause overflow
+    """
     for move in move_precedence:
         target = game_map.get_target(move.square, move.direction)
 
@@ -174,6 +195,8 @@ def check_moves(move_precedence):
 
 
 while True:
+    game_map.get_frame()
+
     moves = []
     for square in game_map:
         if square.owner == myID:
@@ -181,8 +204,4 @@ while True:
             move = check_moves(move_precedence)
             moves.append(move)
 
-    if strength + increment <= max_strength:
-        strength += increment
-
     hlt.send_frame(moves)
-    game_map.get_frame()
